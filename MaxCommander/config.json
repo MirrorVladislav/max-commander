@@ -1,0 +1,13 @@
+{
+  "token": "",
+  "device_id": "",
+  "phone": "",
+  "device_type": "",
+  "app_version": "",
+  "poll_interval": 5.0,
+  "notification_sounds": true,
+  "work_dir": "cache",
+  "download_dir": "downloads",
+  "send_fake_telemetry": false,
+  "reconnect": true
+}
