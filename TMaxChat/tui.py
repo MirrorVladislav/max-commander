@@ -902,8 +902,8 @@ class SessionsModal(ModalScreen[str | None]):
 # MAIN APP
 # =========================
 
-class MaxCommanderApp(App):
-    TITLE = "Max Commander"
+class TMaxChatApp(App):
+    TITLE = "TMaxChat"
     SUB_TITLE = "TUI client for MAX"
 
     CSS = """
@@ -1067,37 +1067,6 @@ class MaxCommanderApp(App):
             self.refresh_status()
             self.focus_messages()
 
-    async def _handle_settings_result(self, result: str | None) -> None:
-        if result != "logout":
-            self.refresh_status()
-            if self.focus_mode == "messages":
-                self.focus_messages()
-            else:
-                self.focus_dialogs()
-            return
-
-        def _on_confirm(confirmed: bool | None) -> None:
-            self.call_later(self._handle_logout_confirmation, confirmed)
-
-        self.push_screen(
-            ConfirmModal(
-                title="Подтверждение",
-                text="Вы уверенны, что хотите выйти из аккаунта?",
-            ),
-            callback=_on_confirm,
-        )
-
-    async def _handle_logout_confirmation(self, confirmed: bool | None) -> None:
-        if confirmed:
-            self.state.status.set("Выход из аккаунта пока не реализован", "warning")
-        else:
-            self.state.status.set("Выход из аккаунта отменён", "info")
-        self.refresh_status()
-        if self.focus_mode == "messages":
-            self.focus_messages()
-        else:
-            self.focus_dialogs()
-
     def _restore_focus_after_modal(self) -> None:
         self.refresh_status()
         if self.focus_mode == "messages":
@@ -1153,7 +1122,7 @@ class MaxCommanderApp(App):
                     stamp = str(session.time)
             marker = "*" if getattr(session, "current", False) else " "
             client = getattr(session, "client", "") or "Unknown"
-            info = MaxCommanderApp._pick_session_info(client, getattr(session, "info", "") or "")
+            info = TMaxChatApp._pick_session_info(client, getattr(session, "info", "") or "")
             location = getattr(session, "location", "") or "-"
             lines.append(f"{marker}{index}. {client}")
             lines.append(f"    {info}")
@@ -1293,6 +1262,8 @@ class MaxCommanderApp(App):
         self.set_status("Подключение...")
         try:
             await self.state.connect()
+            if callable(self.state.save_session_callback):
+                self.state.save_session_callback(**self.session.build_session_payload())
             await self.state.refresh_dialogs()
         except SessionCredentialsMissingError:
             self.refresh_status()
@@ -1684,7 +1655,7 @@ class MaxCommanderApp(App):
     async def action_help(self) -> None:
         await self.push_screen(
             InfoModal(
-                "Max Commander",
+                "TMaxChat",
                 "Tab - переключить панель\n"
                 "Enter - открыть чат / перейти к источнику ответа\n"
                 "Ctrl+F / F8 - поиск в текущем чате\n"
@@ -1944,5 +1915,5 @@ class MaxCommanderApp(App):
 # FACTORY
 # =========================
 
-def build_app(session: MaxSession, state: AppState) -> MaxCommanderApp:
-    return MaxCommanderApp(session=session, state=state)
+def build_app(session: MaxSession, state: AppState) -> TMaxChatApp:
+    return TMaxChatApp(session=session, state=state)

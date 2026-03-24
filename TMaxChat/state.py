@@ -408,7 +408,7 @@ class ComposeState:
 
 class AppState:
     """
-    Центральное состояние Max Commander.
+    Центральное состояние TMaxChat.
 
     Здесь нет прямой работы с pymax — только:
     - храним данные

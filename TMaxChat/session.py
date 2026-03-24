@@ -16,6 +16,7 @@ from uuid import UUID
 import aiohttp
 from pymax import MaxClient
 from pymax.core import SocketMaxClient
+from pymax.crud import Database
 from pymax.exceptions import Error as PyMaxError
 from pymax.exceptions import SocketNotConnectedError, SocketSendError, WebSocketNotConnectedError
 from pymax.payloads import UserAgentPayload
@@ -155,6 +156,7 @@ class MaxSession:
         download_dir: str = "downloads",
         send_fake_telemetry: bool = False,
         reconnect: bool = True,
+        use_cache_credentials: bool = False,
     ) -> None:
         self.token = (token or "").strip()
         self.device_id = None if not device_id else (UUID(str(device_id)) if not isinstance(device_id, UUID) else device_id)
@@ -165,6 +167,9 @@ class MaxSession:
         self.download_dir = download_dir
         self.send_fake_telemetry = send_fake_telemetry
         self.reconnect = reconnect
+        self.use_cache_credentials = bool(use_cache_credentials)
+        self._explicit_credentials_supplied = bool(self.token) and self.device_id is not None
+        self._cache_prepared_for_explicit_credentials = False
 
         self._client: MaxClient | None = None
         self._client_task: asyncio.Task[None] | None = None
@@ -195,7 +200,11 @@ class MaxSession:
 
     @property
     def has_credentials(self) -> bool:
-        return bool(self.token) and self.device_id is not None
+        if bool(self.token) and self.device_id is not None:
+            return True
+        if self.use_cache_credentials:
+            return self._has_cached_credentials()
+        return False
 
     @property
     def me_id(self) -> int:
@@ -228,6 +237,13 @@ class MaxSession:
             app_version=self.app_version,
         )
 
+    def _has_cached_credentials(self) -> bool:
+        try:
+            token = Database(self.work_dir).get_auth_token()
+        except Exception:
+            return False
+        return bool(str(token or "").strip())
+
     def _make_client(
         self,
         *,
@@ -254,6 +270,8 @@ class MaxSession:
         if not self.has_credentials:
             raise SessionCredentialsMissingError("Session credentials are missing")
 
+        self._prepare_cache_for_explicit_credentials()
+
         client = self._make_client(
             phone=self.phone,
             token=self.token,
@@ -279,6 +297,12 @@ class MaxSession:
         shutil.rmtree(work_path, ignore_errors=True)
         if recreate:
             work_path.mkdir(parents=True, exist_ok=True)
+
+    def _prepare_cache_for_explicit_credentials(self) -> None:
+        if not self._explicit_credentials_supplied or self._cache_prepared_for_explicit_credentials:
+            return
+        self._clear_runtime_cache_dirs(recreate=True)
+        self._cache_prepared_for_explicit_credentials = True
 
     async def connect(self, *, timeout: float = 30.0, force_restart: bool = False) -> None:
         if not self.has_credentials:
@@ -384,11 +408,16 @@ class MaxSession:
         self.device_id = UUID(str(device_id)) if not isinstance(device_id, UUID) else device_id
         self.phone = phone.strip() or "+70000000000"
         self.device_type = self._normalize_device_type(device_type)
+        self.use_cache_credentials = False
+        self._explicit_credentials_supplied = bool(self.token) and self.device_id is not None
+        self._cache_prepared_for_explicit_credentials = False
         self._reset_runtime_state()
 
     def clear_credentials(self) -> None:
         self.token = ""
         self.device_id = None
+        self._explicit_credentials_supplied = False
+        self._cache_prepared_for_explicit_credentials = False
 
     def clear_account_identity(self) -> None:
         self.clear_credentials()
@@ -402,9 +431,16 @@ class MaxSession:
         self._reset_runtime_state()
 
     def build_session_payload(self) -> dict[str, str]:
+        current_token = self.token
+        current_device_id = str(self.device_id) if self.device_id is not None else ""
+        if self._client is not None:
+            current_token = str(getattr(self._client, "_token", "") or current_token or "").strip()
+            raw_device_id = getattr(self._client, "_device_id", None)
+            if raw_device_id is not None:
+                current_device_id = str(raw_device_id)
         return {
-            "token": self.token,
-            "device_id": str(self.device_id) if self.device_id is not None else "",
+            "token": current_token,
+            "device_id": current_device_id,
             "phone": self.phone,
             "device_type": self.device_type,
             "app_version": self.app_version,
@@ -1173,9 +1209,20 @@ class MaxSession:
         return await self._build_message_info(chat_id, result, chat_name=(chat.name if chat else None))
 
     async def mark_read(self, chat_id: int, message_id: int) -> int:
-        result = await self._call_with_connection(
-            lambda: self.client.read_message(message_id, chat_id),
+        sender = getattr(self.client, "_send_and_wait", None)
+        if sender is None:
+            raise RuntimeError("MAX client has no _send_and_wait")
+
+        payload = {
+            "type": "READ_MESSAGE",
+            "chatId": int(chat_id),
+            "messageId": int(message_id),
+            "mark": int(time.time() * 1000),
+        }
+        data = await self._call_with_connection(
+            lambda: sender(opcode=Opcode.CHAT_MARK, payload=payload),
         )
+        result = data.get("payload", {}) if isinstance(data, dict) else {}
         return int(self._safe_get(result, "unread", default=0) or 0)
 
     async def download_attachment(

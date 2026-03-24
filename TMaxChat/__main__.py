@@ -21,10 +21,13 @@ def main() -> None:
 
     config_store = ConfigStore(CONFIG_PATH)
     config = config_store.load()
+    token_value = str(config.get("token", "") or "").strip()
+    device_id_value = str(config.get("device_id", "") or "").strip()
+    use_cache_credentials = token_value.lower() == "cache" and device_id_value.lower() == "cache"
 
     session = MaxSession(
-        token=str(config.get("token", "") or "").strip(),
-        device_id=str(config.get("device_id", "") or "").strip() or None,
+        token=None if use_cache_credentials else (token_value or None),
+        device_id=None if use_cache_credentials else (device_id_value or None),
         phone=str(config.get("phone", "") or "").strip(),
         device_type=str(config.get("device_type", "WEB") or "WEB").strip(),
         app_version=str(config.get("app_version", "25.12.13") or "25.12.13").strip(),
@@ -32,6 +35,7 @@ def main() -> None:
         download_dir=_resolve_config_path(CONFIG_PATH, str(config.get("download_dir", "downloads"))),
         send_fake_telemetry=bool(config.get("send_fake_telemetry", False)),
         reconnect=bool(config.get("reconnect", True)),
+        use_cache_credentials=use_cache_credentials,
     )
     state = AppState(
         session,

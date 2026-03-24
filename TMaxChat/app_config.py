@@ -45,7 +45,12 @@ class ConfigStore:
 
     def update_session(self, **fields: Any) -> dict[str, Any]:
         config = self.load()
-        config.update(fields)
+        sanitized = dict(fields)
+        if sanitized.get("token"):
+            sanitized["token"] = "cache"
+        if sanitized.get("device_id"):
+            sanitized["device_id"] = "cache"
+        config.update(sanitized)
         self.save(config)
         return config
 

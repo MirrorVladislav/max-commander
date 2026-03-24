@@ -1,11 +1,13 @@
-# Max Commander V0.9.0 - beta
+# TMaxChat V0.10.0 - beta
 
-`Max Commander` — это неофициальный TUI-клиент для MAX на Python. Легковесный терминальный клиент, ориентированный на эффективность, минимизацию сетевых накладных расходов и управление поведением пользователем.
+`TMaxChat` — это неофициальный TUI-клиент для MAX на Python. Легковесный терминальный клиент, ориентированный на эффективность, минимизацию сетевых накладных расходов и управление поведением пользователем.
 
 Интерфейс сделан в духе DOS / Norton Commander:
 - слева список чатов;
 - справа сообщения выбранного чата;
 - внизу статус и клавиши действий.
+
+![TMaxChat Screenshot](screenshot.png)
 
 Проект построен на `Textual` и `maxapi-python`.
 
@@ -29,11 +31,11 @@
 
 ## Структура проекта
 
-- [session.py](MaxCommander/session.py) — низкоуровневая работа с MAX через `pymax`;
-- [state.py](MaxCommander/state.py) — состояние приложения и прикладная логика;
-- [tui.py](MaxCommander/tui.py) — интерфейс на `Textual`;
-- [app_config.py](MaxCommander/app_config.py) — чтение и запись конфигурации;
-- [__main__.py](MaxCommander/__main__.py) — точка входа.
+- [session.py](session.py) — низкоуровневая работа с MAX через `pymax`;
+- [state.py](state.py) — состояние приложения и прикладная логика;
+- [tui.py](tui.py) — интерфейс на `Textual`;
+- [app_config.py](app_config.py) — чтение и запись конфигурации;
+- [__main__.py](__main__.py) — точка входа.
 
 ## Требования
 
@@ -49,7 +51,7 @@ pip install -r requirements.txt
 Запускать нужно из родительской папки проекта:
 
 ```bash
-python -m MaxCommander
+python -m TMaxChat
 ```
 
 При первом запуске, если `token` и `device_id` пустые, программа откроет окно входа:
@@ -57,11 +59,11 @@ python -m MaxCommander
 2. выберите тип клиента стрелками `Left/Right` (Для обеспечения стабильности рекомендуется использовать профиль Desktop);
 3. введите код из SMS.
 
-После успешного входа сессия будет сохранена в [config.json](MaxCommander/config.json).
+После успешного входа сессия будет сохранена в [config.json](config.json).
 
 ## Конфигурация
 
-Основные настройки лежат в [config.json](MaxCommander/config.json):
+Основные настройки лежат в [config.json](config.json):
 
 - `token` — сессионные данные;
     Do not share your config.json. It contains sensitive authentication data.
@@ -102,6 +104,9 @@ python -m MaxCommander
 - очищает локальные токены;
 - удаляет локальный кэш;
 - возвращает пользователя в окно нового входа.
+
+## Почему
+Разработано для пользователей, предпочитающих рабочие процессы, управляемые клавиатурой, и легковесные терминальные инструменты.
 
 ## Важные замечания
 
